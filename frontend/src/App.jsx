@@ -1,14 +1,16 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
+
 import Login from "./Login";
 import Products from "./Products";
 import StockManagement from "./StockManagement";
 import Customers from "./Customers";
 import Orders from "./Orders";
 import Reports from "./Reports";
-
+import SettingsPage from "./Settings";
+import AuditLogs from "./AuditLogs";
 
 import {
   LayoutDashboard,
@@ -24,10 +26,16 @@ import {
   TrendingUp,
   Boxes,
   CircleAlert,
+  AlertTriangle,
   Wallet,
   ChevronDown,
   MoreHorizontal,
-  LogOut
+  LogOut,
+  Activity,
+  X,
+  UserRound,
+  CheckCircle,
+  Clock
 } from "lucide-react";
 
 import {
@@ -44,15 +52,34 @@ import "./App.css";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-const salesData = [
-  { day: "Mon", sales: 400 },
-  { day: "Tue", sales: 650 },
-  { day: "Wed", sales: 500 },
-  { day: "Thu", sales: 900 },
-  { day: "Fri", sales: 700 },
-  { day: "Sat", sales: 1100 },
-  { day: "Sun", sales: 950 }
-];
+
+const rolePermissions = {
+  admin: [
+    "Dashboard",
+    "Products",
+    "Stock Management",
+    "Customers",
+    "Orders",
+    "Reports",
+    "Audit Logs",
+    "Settings"
+  ],
+  manager: [
+    "Dashboard",
+    "Products",
+    "Stock Management",
+    "Customers",
+    "Orders",
+    "Reports"
+  ],
+  staff: [
+    "Dashboard",
+    "Products",
+    "Stock Management",
+    "Customers",
+    "Orders"
+  ]
+};
 
 const navItems = [
   { name: "Dashboard", icon: LayoutDashboard },
@@ -61,6 +88,7 @@ const navItems = [
   { name: "Customers", icon: Users },
   { name: "Orders", icon: ShoppingCart },
   { name: "Reports", icon: ChartNoAxesCombined },
+  { name: "Audit Logs", icon: Activity },
   { name: "Settings", icon: Settings }
 ];
 
@@ -73,67 +101,360 @@ function App() {
     }
   });
 
-  const [activePage, setActivePage] = useState("Dashboard");
+  const [activePage, setActivePage] = useState(() => {
+    return sessionStorage.getItem("activePage") || "Dashboard";
+  });
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const [dashboardStats, setDashboardStats] = useState(null);
-  const [loadingStats, setLoadingStats] = useState(true);
-  const [dashboardError, setDashboardError] = useState("");
+  // Topbar controls
+  const [search, setSearch] = useState("");
+  const [searchResults, setSearchResults] = useState({
+    products: [],
+    orders: []
+  });
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("user");
-    sessionStorage.removeItem("token");
-    setDashboardStats(null);
-    setActivePage("Dashboard");
-    setCurrentUser(null);
-  };
+  const [notifications, setNotifications] = useState([]);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
 
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  const searchRef = useRef(null);
+  const searchContainerRef = useRef(null);
+  const notificationRef = useRef(null);
+  const profileRef = useRef(null);
+
+  const userRole = String(currentUser?.role || "staff").toLowerCase();
+  const allowedPages = rolePermissions[userRole] || rolePermissions.staff;
+
+  const visibleNavItems = navItems.filter((item) =>
+    allowedPages.includes(item.name)
+  );
+
+  const api = axios.create({
+    baseURL: `${API}/api`,
+    headers: {
+      Authorization: `Bearer ${sessionStorage.getItem("token")}`
+    }
+  });
+
+  // Apply saved theme globally.
   useEffect(() => {
-    if (!currentUser) {
-      setLoadingStats(false);
-      return;
+    let savedSettings = {};
+
+    try {
+      savedSettings = JSON.parse(
+        localStorage.getItem("stockflowSettings") || "{}"
+      );
+    } catch (error) {
+      console.error("Unable to load saved theme:", error);
     }
 
-    const fetchDashboardStats = async () => {
-      try {
-        setLoadingStats(true);
-        setDashboardError("");
+    const selectedTheme = savedSettings.theme || "dark";
 
-        const token = sessionStorage.getItem("token");
+    const applyTheme = () => {
+      const actualTheme =
+        selectedTheme === "system"
+          ? window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light"
+          : selectedTheme;
 
-        const response = await axios.get(`${API}/api/dashboard`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
+      document.documentElement.setAttribute("data-theme", actualTheme);
 
-        if (response.data.success) {
-          setDashboardStats(response.data.stats);
+      document.documentElement.style.setProperty(
+        "--accent",
+        savedSettings.accent || "#14b8a6"
+      );
+    };
+
+    applyTheme();
+
+    const mediaQuery = window.matchMedia(
+      "(prefers-color-scheme: dark)"
+    );
+
+    const handleSystemChange = () => {
+      if (selectedTheme === "system") applyTheme();
+    };
+
+    mediaQuery.addEventListener("change", handleSystemChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleSystemChange);
+    };
+  }, []);
+
+  // Keep active page within the user's permissions.
+  useEffect(() => {
+    if (!allowedPages.includes(activePage)) {
+      setActivePage("Dashboard");
+      sessionStorage.setItem("activePage", "Dashboard");
+    } else {
+      sessionStorage.setItem("activePage", activePage);
+    }
+  }, [activePage, userRole]);
+
+ const [dashboardStats, setDashboardStats] = useState(null);
+const [dashboardOrders, setDashboardOrders] = useState([]);
+const [loadingStats, setLoadingStats] = useState(true);
+const [dashboardError, setDashboardError] = useState("");
+
+  const navigateTo = (page) => {
+    if (!allowedPages.includes(page)) return;
+
+    setActivePage(page);
+    setSearch("");
+    setSearchOpen(false);
+    setNotificationOpen(false);
+    setProfileOpen(false);
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("activePage");
+    sessionStorage.removeItem("user");
+    sessionStorage.removeItem("token");
+
+    setDashboardStats(null);
+    setNotifications([]);
+    setSearch("");
+    setActivePage("Dashboard");
+    setCurrentUser(null);
+
+    setSearchOpen(false);
+    setNotificationOpen(false);
+    setProfileOpen(false);
+  };
+
+  // Dashboard data.
+useEffect(() => {
+  if (!currentUser) {
+    setLoadingStats(false);
+    return;
+  }
+
+  let cancelled = false;
+
+  const fetchDashboardData = async (showLoader = false) => {
+    try {
+      if (showLoader) setLoadingStats(true);
+
+      setDashboardError("");
+
+      const [dashboardResult, ordersResult] = await Promise.allSettled([
+        api.get("/dashboard"),
+        api.get("/orders")
+      ]);
+
+      if (cancelled) return;
+
+      if (dashboardResult.status === "fulfilled") {
+        if (dashboardResult.value.data.success) {
+          setDashboardStats(dashboardResult.value.data.stats);
         }
-      } catch (error) {
+      } else {
+        const error = dashboardResult.reason;
+
         if (error.response?.status === 401) {
-          sessionStorage.removeItem("user");
-          sessionStorage.removeItem("token");
-          setCurrentUser(null);
+          handleLogout();
           return;
         }
 
-        console.error(
-          "Dashboard API Error:",
-          error.response?.data || error.message
-        );
-
         setDashboardError(
           error.response?.data?.message ||
-            "Unable to load dashboard statistics."
+          "Unable to load dashboard statistics."
         );
-      } finally {
+      }
+
+      if (ordersResult.status === "fulfilled") {
+        setDashboardOrders(ordersResult.value.data.orders || []);
+      } else {
+        const error = ordersResult.reason;
+
+        if (error.response?.status === 401) {
+          handleLogout();
+          return;
+        }
+
+        console.error("Orders loading error:", error);
+      }
+    } catch (error) {
+      console.error("Dashboard loading error:", error);
+
+      if (!cancelled) {
+        setDashboardError("Unable to load dashboard data.");
+      }
+    } finally {
+      if (!cancelled && showLoader) {
         setLoadingStats(false);
+      }
+    }
+  };
+
+  fetchDashboardData(true);
+
+  // Refresh dashboard data every 30 seconds.
+  const refreshInterval = setInterval(() => {
+    fetchDashboardData(false);
+  }, 30000);
+
+  return () => {
+    cancelled = true;
+    clearInterval(refreshInterval);
+  };
+}, [currentUser]);
+
+  // Load actual low-stock notifications.
+  const fetchNotifications = async () => {
+    try {
+      setNotificationsLoading(true);
+
+      const response = await api.get("/stock/low-stock");
+
+      const data = response.data;
+
+      setNotifications(
+        data.products ||
+        data.lowStockProducts ||
+        data.movements ||
+        []
+      );
+    } catch (error) {
+      console.error("Notification loading error:", error);
+      setNotifications([]);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchNotifications();
+    }
+  }, [currentUser]);
+
+  // Search products and orders.
+  useEffect(() => {
+    if (!currentUser || search.trim().length < 2) {
+      setSearchResults({ products: [], orders: [] });
+      setSearchLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      try {
+        setSearchLoading(true);
+
+        const [productResult, orderResult] = await Promise.allSettled([
+          api.get("/products", {
+            params: { search: search.trim() }
+          }),
+          api.get("/orders")
+        ]);
+
+        if (cancelled) return;
+
+        const foundProducts =
+          productResult.status === "fulfilled"
+            ? productResult.value.data.products || []
+            : [];
+
+        const allOrders =
+          orderResult.status === "fulfilled"
+            ? orderResult.value.data.orders || []
+            : [];
+
+        const query = search.trim().toLowerCase();
+
+        const foundOrders = allOrders.filter((order) =>
+          `${order.orderNumber || ""} ${
+            order.customer?.name || ""
+          } ${order.status || ""}`
+            .toLowerCase()
+            .includes(query)
+        );
+
+        setSearchResults({
+          products: foundProducts.slice(0, 5),
+          orders: foundOrders.slice(0, 5)
+        });
+      } catch (error) {
+        console.error("Search error:", error);
+      } finally {
+        if (!cancelled) setSearchLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [search, currentUser]);
+
+  // Ctrl + K / Cmd + K opens search.
+  useEffect(() => {
+    const handleKeyboard = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        searchRef.current?.focus();
+        setSearchOpen(true);
+      }
+
+      if (event.key === "Escape") {
+        setSearchOpen(false);
+        setNotificationOpen(false);
+        setProfileOpen(false);
+        searchRef.current?.blur();
       }
     };
 
-    fetchDashboardStats();
-  }, [currentUser]);
+    window.addEventListener("keydown", handleKeyboard);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyboard);
+    };
+  }, []);
+
+  // Close dropdowns when clicking outside.
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target)
+      ) {
+        setSearchOpen(false);
+      }
+
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target)
+      ) {
+        setNotificationOpen(false);
+      }
+
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(event.target)
+      ) {
+        setProfileOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
+
+  const handleSearchResult = (page) => {
+    navigateTo(page);
+  };
 
   const stats = [
     {
@@ -159,6 +480,52 @@ function App() {
       icon: Wallet
     }
   ];
+const salesData = Array.from({ length: 7 }, (_, index) => {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() - (6 - index));
+
+  const sales = dashboardOrders
+    .filter((order) => {
+      if (!order.createdAt) return false;
+
+      const orderDate = new Date(order.createdAt);
+
+      return (
+        orderDate.getFullYear() === date.getFullYear() &&
+        orderDate.getMonth() === date.getMonth() &&
+        orderDate.getDate() === date.getDate()
+      );
+    })
+    .reduce(
+      (total, order) =>
+        total + (Number(order.totalAmount) || 0),
+      0
+    );
+
+  return {
+    day: date.toLocaleDateString("en-IN", {
+      weekday: "short"
+    }),
+    sales
+  };
+});
+
+const recentOrders = [...dashboardOrders]
+  .sort(
+    (a, b) =>
+      new Date(b.createdAt || 0) -
+      new Date(a.createdAt || 0)
+  )
+  .slice(0, 5);
+
+const formatDashboardDate = (date) =>
+  date
+    ? new Date(date).toLocaleDateString("en-IN")
+    : "—";
+
+const formatDashboardPrice = (amount) =>
+  `₹${(Number(amount) || 0).toLocaleString("en-IN")}`;
 
   const healthyProducts = dashboardStats
     ? Math.max(
@@ -224,7 +591,6 @@ function App() {
               </div>
 
               <p>{stat.title}</p>
-
               <h2>{loadingStats ? "..." : stat.value}</h2>
 
               <small className="positive">
@@ -249,10 +615,7 @@ function App() {
               <h3>Sales Overview</h3>
             </div>
 
-            <button className="select-button">
-              Last 7 days
-              <ChevronDown size={15} />
-            </button>
+            <span className="select-button">Last 7 days</span>
           </div>
 
           <div className="chart-area">
@@ -266,23 +629,12 @@ function App() {
                     x2="0"
                     y2="1"
                   >
-                    <stop
-                      offset="0%"
-                      stopColor="#22d3c5"
-                      stopOpacity={0.35}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor="#22d3c5"
-                      stopOpacity={0}
-                    />
+                    <stop offset="0%" stopColor="#22d3c5" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#22d3c5" stopOpacity={0} />
                   </linearGradient>
                 </defs>
 
-                <CartesianGrid
-                  stroke="#ffffff12"
-                  vertical={false}
-                />
+                <CartesianGrid stroke="#ffffff12" vertical={false} />
 
                 <XAxis
                   dataKey="day"
@@ -366,7 +718,7 @@ function App() {
 
             <button
               className="text-button"
-              onClick={() => setActivePage("Orders")}
+              onClick={() => navigateTo("Orders")}
             >
               View all ↗
             </button>
@@ -379,19 +731,37 @@ function App() {
             <span>STATUS</span>
           </div>
 
-          <div className="order-row">
-            <span>#179446</span>
-            <span>Arun Kumar</span>
-            <strong>₹1,198</strong>
-            <span className="status pending">Pending</span>
-          </div>
+        {recentOrders.length === 0 ? (
+  <p className="report-empty">
+    {loadingStats ? "Loading recent orders..." : "No orders found yet."}
+  </p>
+) : (
+  recentOrders.map((order) => (
+    <div className="order-row" key={order._id}>
+      <span className="order-id">
+        {order.orderNumber || "—"}
+      </span>
 
-          <div className="order-row">
-            <span>#179442</span>
-            <span>Arun Kumar</span>
-            <strong>₹1,198</strong>
-            <span className="status pending">Pending</span>
-          </div>
+      <span className="order-customer">
+        {order.customer?.name || "Unknown customer"}
+      </span>
+
+      <span className="order-amount">
+        {formatDashboardPrice(order.totalAmount)}
+      </span>
+
+      <span>
+        <span
+          className={`order-status ${String(
+            order.status || "pending"
+          ).toLowerCase()}`}
+        >
+          {order.status || "Pending"}
+        </span>
+      </span>
+    </div>
+  ))
+)}
         </motion.div>
 
         <motion.div
@@ -410,14 +780,22 @@ function App() {
           </div>
 
           {dashboardStats?.lowStockProducts > 0 ? (
-            <div className="alert-content">
-              <div className="product-symbol">
-                <Package />
-              </div>
+            <div
+              className="alert-content clickable-alert"
+              onClick={() => navigateTo("Stock Management")}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  navigateTo("Stock Management");
+                }
+              }}
+            >
+              <div className="product-symbol"><Package /></div>
 
               <div>
                 <strong>Low stock products</strong>
-                <small>Check your inventory</small>
+                <small>Click to check your inventory</small>
               </div>
 
               <b className="stock-number">
@@ -426,15 +804,11 @@ function App() {
             </div>
           ) : (
             <div className="alert-content">
-              <div className="product-symbol">
-                <Package />
-              </div>
+              <div className="product-symbol"><CheckCircle /></div>
 
               <div>
                 <strong>No low-stock alerts</strong>
-                <small>
-                  Your inventory is above its thresholds.
-                </small>
+                <small>Your inventory is above its thresholds.</small>
               </div>
             </div>
           )}
@@ -451,14 +825,6 @@ function App() {
     </>
   );
 
-  const comingSoonContent = (
-    <div className="panel glass-card" style={{ padding: 32 }}>
-      <h2>{activePage}</h2>
-      <p>This page is coming soon.</p>
-    </div>
-  );
-
-  // PAGE SELECTION
   let pageContent;
 
   if (activePage === "Dashboard") {
@@ -467,42 +833,46 @@ function App() {
     pageContent = <Products />;
   } else if (activePage === "Stock Management") {
     pageContent = <StockManagement />;
-  }else if (activePage === "Customers") {
-  pageContent = <Customers />;
+  } else if (activePage === "Customers") {
+    pageContent = <Customers />;
   } else if (activePage === "Orders") {
-  pageContent = <Orders />;
-  }else if (activePage === "Reports") {
-  pageContent = <Reports />;
-  }else {
-    pageContent = comingSoonContent;
+    pageContent = <Orders />;
+  } else if (activePage === "Reports") {
+    pageContent = <Reports />;
+  } else if (activePage === "Audit Logs" && userRole === "admin") {
+    pageContent = <AuditLogs />;
+  } else if (activePage === "Settings" && userRole === "admin") {
+    pageContent = <SettingsPage currentUser={currentUser} />;
+  } else {
+    pageContent = dashboardContent;
   }
+
+  const noSearchResults =
+    search.trim().length >= 2 &&
+    !searchLoading &&
+    searchResults.products.length === 0 &&
+    searchResults.orders.length === 0;
 
   return (
     <div className="app-layout">
       <motion.aside
-        className={`sidebar ${
-          sidebarOpen ? "" : "sidebar-closed"
-        }`}
+        className={`sidebar ${sidebarOpen ? "" : "sidebar-closed"}`}
         initial={{ x: -40, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.6 }}
       >
         <div className="brand">
-          <div className="brand-icon">
-            <Boxes />
-          </div>
+          <div className="brand-icon"><Boxes /></div>
 
           {sidebarOpen && (
-            <h2>
-              Stock<span>Flow</span>
-            </h2>
+            <h2>Stock<span>Flow</span></h2>
           )}
         </div>
 
-        <p className="nav-label">MAIN MENU</p>
+        {sidebarOpen && <p className="nav-label">MAIN MENU</p>}
 
         <nav>
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
 
             return (
@@ -511,11 +881,10 @@ function App() {
                 className={`nav-item ${
                   activePage === item.name ? "active" : ""
                 }`}
-                onClick={() => setActivePage(item.name)}
+                onClick={() => navigateTo(item.name)}
                 title={item.name}
               >
                 <Icon size={19} />
-
                 {sidebarOpen && <span>{item.name}</span>}
               </button>
             );
@@ -535,40 +904,257 @@ function App() {
         <header className="topbar">
           <button
             className="icon-button"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            onClick={() => setSidebarOpen((previous) => !previous)}
+            title="Toggle sidebar"
+            aria-label="Toggle sidebar"
           >
             <Menu />
           </button>
 
-          <div className="search-box">
+          {/* Search */}
+          <div
+            className="search-box topbar-search"
+            ref={searchContainerRef}
+          >
             <Search size={18} />
-            <input placeholder="Search products, orders..." />
-            <span>⌘ K</span>
+
+            <input
+              ref={searchRef}
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setSearchOpen(true);
+              }}
+              onFocus={() => setSearchOpen(true)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  if (searchResults.products.length) {
+                    navigateTo("Products");
+                  } else if (searchResults.orders.length) {
+                    navigateTo("Orders");
+                  }
+                }
+              }}
+              placeholder="Search products, orders..."
+              aria-label="Search products and orders"
+            />
+
+            {search ? (
+              <button
+                className="search-clear"
+                onClick={() => {
+                  setSearch("");
+                  setSearchOpen(true);
+                  searchRef.current?.focus();
+                }}
+                aria-label="Clear search"
+              >
+                <X size={16} />
+              </button>
+            ) : (
+              <span className="search-shortcut">Ctrl K</span>
+            )}
+
+            {searchOpen && search.trim().length >= 2 && (
+              <div className="topbar-dropdown search-dropdown">
+                {searchLoading && (
+                  <p className="dropdown-message">Searching...</p>
+                )}
+
+                {!searchLoading && searchResults.products.length > 0 && (
+                  <>
+                    <p className="dropdown-section-title">PRODUCTS</p>
+
+                    {searchResults.products.map((product) => (
+                      <button
+                        className="search-result"
+                        key={product._id}
+                        onClick={() => handleSearchResult("Products")}
+                      >
+                        <Package size={17} />
+                        <span>
+                          <strong>{product.name}</strong>
+                          <small>
+                            SKU: {product.sku || "—"} · Stock: {product.quantity ?? 0}
+                          </small>
+                        </span>
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                {!searchLoading && searchResults.orders.length > 0 && (
+                  <>
+                    <p className="dropdown-section-title">ORDERS</p>
+
+                    {searchResults.orders.map((order) => (
+                      <button
+                        className="search-result"
+                        key={order._id}
+                        onClick={() => handleSearchResult("Orders")}
+                      >
+                        <ShoppingCart size={17} />
+                        <span>
+                          <strong>{order.orderNumber}</strong>
+                          <small>
+                            {order.customer?.name || "Customer"} · ₹
+                            {Number(order.totalAmount || 0).toLocaleString("en-IN")}
+                          </small>
+                        </span>
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                {noSearchResults && (
+                  <p className="dropdown-message">No matching products or orders found.</p>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="topbar-right">
-            <button className="icon-button notification">
-              <Bell size={20} />
-              <i />
-            </button>
+            {/* Notifications */}
+            <div className="topbar-control" ref={notificationRef}>
+              <button
+                className="icon-button notification"
+                onClick={() => {
+                  setNotificationOpen((previous) => !previous);
+                  setProfileOpen(false);
+                  if (!notificationOpen) fetchNotifications();
+                }}
+                title="Notifications"
+                aria-label="Notifications"
+              >
+                <Bell size={20} />
+                {notifications.length > 0 && <i />}
+              </button>
 
-            <div className="profile">
-              <div className="avatar">
-                {currentUser.name?.charAt(0).toUpperCase() || "U"}
-              </div>
+              {notificationOpen && (
+                <div className="topbar-dropdown notification-dropdown">
+                  <div className="dropdown-heading">
+                    <div>
+                      <strong>Notifications</strong>
+                      <small>{notifications.length} low-stock alerts</small>
+                    </div>
 
-              <div>
-                <strong>{currentUser.name}</strong>
-                <small>{currentUser.role}</small>
-              </div>
+                    <button
+                      className="dropdown-icon-button"
+                      onClick={fetchNotifications}
+                      title="Refresh notifications"
+                    >
+                      <Clock size={17} />
+                    </button>
+                  </div>
 
-              <ChevronDown size={16} />
+                  {notificationsLoading ? (
+                    <p className="dropdown-message">Loading notifications...</p>
+                  ) : notifications.length === 0 ? (
+                    <div className="notification-empty">
+                      <CheckCircle size={25} />
+                      <strong>You're all caught up!</strong>
+                      <small>No low-stock alerts found.</small>
+                    </div>
+                  ) : (
+                    <div className="notification-list">
+                      {notifications.map((product) => (
+                        <button
+                          className="notification-item"
+                          key={product._id}
+                          onClick={() => navigateTo("Stock Management")}
+                        >
+                          <span className="notification-symbol">
+                            <AlertTriangle size={18} />
+                          </span>
+                          <span>
+                            <strong>{product.name || "Low stock product"}</strong>
+                            <small>
+                              Available: {product.quantity ?? 0} · Threshold:{" "}
+                              {product.lowStockThreshold ?? "—"}
+                            </small>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    className="dropdown-footer-button"
+                    onClick={() => navigateTo("Stock Management")}
+                  >
+                    Open Stock Management
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Profile */}
+            <div className="topbar-control" ref={profileRef}>
+              <button
+                className="profile profile-button"
+                onClick={() => {
+                  setProfileOpen((previous) => !previous);
+                  setNotificationOpen(false);
+                  setSearchOpen(false);
+                }}
+                aria-label="Open account menu"
+                aria-expanded={profileOpen}
+              >
+                <div className="avatar">
+                  {currentUser.name?.charAt(0).toUpperCase() || "U"}
+                </div>
+
+                <span className="profile-text">
+                  <strong>{currentUser.name}</strong>
+                  <small>{currentUser.role}</small>
+                </span>
+
+                <ChevronDown size={16} />
+              </button>
+
+              {profileOpen && (
+                <div className="topbar-dropdown profile-dropdown">
+                  <div className="profile-dropdown-user">
+                    <div className="avatar">
+                      {currentUser.name?.charAt(0).toUpperCase() || "U"}
+                    </div>
+                    <div>
+                      <strong>{currentUser.name}</strong>
+                      <small>{currentUser.email || currentUser.role}</small>
+                    </div>
+                  </div>
+
+                  <div className="profile-role">
+                    <UserRound size={15} />
+                    Account role: {currentUser.role}
+                  </div>
+
+                  {allowedPages.includes("Settings") && (
+                    <button
+                      className="profile-menu-item"
+                      onClick={() => navigateTo("Settings")}
+                    >
+                      <Settings size={17} />
+                      Settings
+                    </button>
+                  )}
+
+                  <button
+                    className="profile-menu-item logout-item"
+                    onClick={handleLogout}
+                  >
+                    <LogOut size={17} />
+                    Sign out
+                  </button>
+                </div>
+              )}
             </div>
 
             <button
-              className="icon-button"
+              className="icon-button logout-button"
               onClick={handleLogout}
               title="Log out"
+              aria-label="Log out"
             >
               <LogOut size={20} />
             </button>

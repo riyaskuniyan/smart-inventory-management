@@ -13,6 +13,8 @@ const stockRoutes = require("./routes/stockRoutes");
 const customerRoutes = require("./routes/customerRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const userRoutes = require("./routes/userRoutes");
+const auditRoutes = require("./routes/auditRoutes");
 
 const app = express();
 
@@ -22,7 +24,8 @@ app.use(helmet());
 app.use(morgan("dev"));
 app.use(express.json());
 
-
+app.use("/api/audit", auditRoutes);
+app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/protected", protectedRoutes);
 app.use("/api/products", productRoutes);

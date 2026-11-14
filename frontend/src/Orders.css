@@ -428,3 +428,123 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ORDERS - GLOBAL DARK/LIGHT THEME SUPPORT */
+
+.orders-page {
+  color: var(--app-text);
+}
+
+.orders-header h1,
+.orders-table-header h3,
+.orders-stat-card h2,
+.orders-table td strong,
+.order-modal-header h2 {
+  color: var(--app-text);
+}
+
+.orders-header p,
+.orders-table-header p,
+.orders-stat-card span,
+.order-modal-header p,
+.order-modal form label {
+  color: var(--app-muted);
+}
+
+.orders-stat-card,
+.orders-table-card,
+.order-modal {
+  background: var(--app-card);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+
+.orders-table-header {
+  border-bottom-color: var(--app-border);
+}
+
+.orders-table th {
+  background: var(--app-input);
+  color: var(--app-muted);
+}
+
+.orders-table td {
+  color: var(--app-text);
+  border-bottom-color: var(--app-border);
+}
+
+.orders-table tbody tr:hover {
+  background: var(--app-input);
+}
+
+.orders-search {
+  background: var(--app-input);
+  border-color: var(--app-border);
+  color: var(--app-muted);
+}
+
+.orders-search input {
+  color: var(--app-text);
+}
+
+.orders-search input::placeholder {
+  color: var(--app-muted);
+}
+
+.order-modal form input,
+.order-modal form select {
+  background: var(--app-input);
+  color: var(--app-text);
+  border-color: var(--app-border);
+}
+
+.order-modal-header button {
+  color: var(--app-muted);
+}
+
+.order-cancel {
+  background: var(--app-input);
+  color: var(--app-text);
+  border-color: var(--app-border);
+}
+
+.order-detail-items {
+  border-top-color: var(--app-border);
+  color: var(--app-text);
+}
+
+.order-detail-items div {
+  border-bottom-color: var(--app-border);
+}
+
+.order-modal-overlay {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+:root[data-theme="light"] .order-modal-overlay {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+:root[data-theme="light"] .orders-table tbody tr:hover {
+  background: #f1f5f9;
+}
+
+:root[data-theme="light"] .order-status.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+:root[data-theme="light"] .order-status.processing {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+:root[data-theme="light"] .order-status.completed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+:root[data-theme="light"] .order-status.cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}

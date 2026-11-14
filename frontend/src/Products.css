@@ -568,3 +568,140 @@
     width: 100%;
   }
 }
+
+/* =========================================
+   PRODUCTS - COMPLETE LIGHT/DARK THEME
+========================================= */
+
+.products-page {
+  background: transparent;
+  color: var(--app-text);
+}
+
+/* HEADINGS */
+.products-heading h1,
+.products-table-heading h3,
+.product-summary-card h2,
+.product-name-cell strong,
+.products-empty h3,
+.product-modal-heading h2 {
+  color: var(--app-text);
+}
+
+.products-heading p,
+.eyebrow,
+.product-summary-card small,
+.products-table-heading p,
+.product-name-cell small,
+.products-empty,
+.product-form-field label {
+  color: var(--app-muted);
+}
+
+/* SUMMARY CARDS */
+.product-summary-card {
+  background: var(--app-card);
+  border-color: var(--app-border);
+}
+
+/* SEARCH */
+.products-search,
+.refresh-btn {
+  background: var(--app-input);
+  color: var(--app-text);
+  border-color: var(--app-border);
+}
+
+.products-search input {
+  background: transparent;
+  color: var(--app-text);
+}
+
+.products-search input::placeholder {
+  color: var(--app-muted);
+}
+
+/* TABLE */
+.products-table-card {
+  background: var(--app-card);
+  border-color: var(--app-border);
+}
+
+.products-table-heading {
+  border-bottom-color: var(--app-border);
+}
+
+.products-table th {
+  background: var(--app-input);
+  color: var(--app-muted);
+}
+
+.products-table td {
+  color: var(--app-text);
+  border-bottom-color: var(--app-border);
+}
+
+.products-table tbody tr:hover {
+  background: var(--app-input);
+}
+
+/* PRODUCT NAME AND PRICE */
+.product-name-cell strong,
+.product-price {
+  color: var(--app-text) !important;
+}
+
+/* ACTIONS */
+.product-actions button {
+  background: var(--app-input);
+  border-color: var(--app-border);
+}
+
+/* MODAL */
+.product-modal {
+  background: var(--app-card);
+  color: var(--app-text);
+  border-color: var(--app-border);
+}
+
+.product-modal-heading > button {
+  background: var(--app-input);
+  color: var(--app-text);
+  border-color: var(--app-border);
+}
+
+/* FORM */
+.product-form-field input,
+.product-form-field textarea {
+  background: var(--app-input);
+  color: var(--app-text);
+  border-color: var(--app-border);
+}
+
+.product-form-field input::placeholder,
+.product-form-field textarea::placeholder {
+  color: var(--app-muted);
+}
+
+.product-modal-actions {
+  border-top-color: var(--app-border);
+}
+
+.cancel-product-btn {
+  color: var(--app-text);
+  border-color: var(--app-border);
+}
+
+/* LIGHT THEME MODAL OVERLAY */
+:root[data-theme="light"] .product-modal-overlay {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+/* LIGHT THEME HOVER */
+:root[data-theme="light"] .products-table tbody tr:hover {
+  background: #f1f5f9;
+}
+
+:root[data-theme="light"] .product-actions button:hover {
+  background: #d9f2ed;
+}

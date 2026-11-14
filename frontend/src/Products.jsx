@@ -1,14 +1,15 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
+import Barcode from "react-barcode";
 import {
   Plus, Search, Package, Pencil, Trash2,
-  X, AlertTriangle, RefreshCw
+  X, AlertTriangle, RefreshCw, Printer
 } from "lucide-react";
 import "./Products.css";
 
-const API = "http://localhost:5000/api/products";
+const API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/products`;
 
 const emptyForm = {
   name: "",
@@ -20,7 +21,29 @@ const emptyForm = {
   lowStockThreshold: 5
 };
 
+const escapeHTML = (value) =>
+  String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[character]);
+
 function Products() {
+  let userRole = "staff";
+
+  try {
+    userRole = String(
+      JSON.parse(sessionStorage.getItem("user") || "{}").role || "staff"
+    ).toLowerCase();
+  } catch {
+    userRole = "staff";
+  }
+
+  const canManageProducts = userRole === "admin" || userRole === "manager";
+  const canDeleteProducts = userRole === "admin";
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -31,6 +54,7 @@ function Products() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
+  const barcodeRefs = useRef({});
   const token = sessionStorage.getItem("token");
 
   const api = axios.create({
@@ -40,7 +64,6 @@ function Products() {
     }
   });
 
-  // FETCH PRODUCTS
   const fetchProducts = async () => {
     try {
       setLoading(true);
@@ -52,9 +75,7 @@ function Products() {
 
       setProducts(response.data.products || []);
     } catch (err) {
-      setError(
-        err.response?.data?.message || "Unable to load products."
-      );
+      setError(err.response?.data?.message || "Unable to load products.");
     } finally {
       setLoading(false);
     }
@@ -64,27 +85,22 @@ function Products() {
     fetchProducts();
   }, [search]);
 
-  // FORM INPUT
   const handleChange = (e) => {
     const { name, value } = e.target;
-
-    setForm((previous) => ({
-      ...previous,
-      [name]: value
-    }));
+    setForm((previous) => ({ ...previous, [name]: value }));
   };
 
-  // OPEN ADD MODAL
   const openAddModal = () => {
+    if (!canManageProducts) return;
     setEditingId(null);
     setForm(emptyForm);
     setModalOpen(true);
   };
 
-  // OPEN EDIT MODAL
   const openEditModal = (product) => {
-    setEditingId(product._id);
+    if (!canManageProducts) return;
 
+    setEditingId(product._id);
     setForm({
       name: product.name || "",
       sku: product.sku || "",
@@ -98,9 +114,9 @@ function Products() {
     setModalOpen(true);
   };
 
-  // CREATE OR UPDATE PRODUCT
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canManageProducts) return;
 
     try {
       setSaving(true);
@@ -122,19 +138,17 @@ function Products() {
       setModalOpen(false);
       setForm(emptyForm);
       setEditingId(null);
-
       await fetchProducts();
     } catch (err) {
-      setError(
-        err.response?.data?.message || "Unable to save product."
-      );
+      setError(err.response?.data?.message || "Unable to save product.");
     } finally {
       setSaving(false);
     }
   };
 
-  // DELETE PRODUCT
   const handleDelete = async (id) => {
+    if (!canDeleteProducts) return;
+
     const confirmed = window.confirm(
       "Are you sure you want to delete this product?"
     );
@@ -145,10 +159,81 @@ function Products() {
       await api.delete(`/${id}`);
       await fetchProducts();
     } catch (err) {
-      setError(
-        err.response?.data?.message || "Unable to delete product."
-      );
+      setError(err.response?.data?.message || "Unable to delete product.");
     }
+  };
+
+  // PRINT ONE PRODUCT BARCODE
+  const printBarcode = (product) => {
+    if (!product.barcode) {
+      setError("This product does not have a barcode yet.");
+      return;
+    }
+
+    const barcodeContainer = barcodeRefs.current[product._id];
+    const svg = barcodeContainer?.querySelector("svg");
+
+    if (!svg) {
+      setError("Barcode image is not ready. Please try again.");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank", "width=500,height=400");
+
+    if (!printWindow) {
+      setError("Please allow pop-ups to print barcode labels.");
+      return;
+    }
+
+    const barcodeSVG = svg.outerHTML;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Barcode - ${escapeHTML(product.name)}</title>
+          <style>
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              padding: 20px;
+              font-family: Arial, sans-serif;
+              text-align: center;
+            }
+            .label {
+              width: 300px;
+              margin: 20px auto;
+              padding: 15px;
+              border: 1px solid #ddd;
+              border-radius: 5px;
+            }
+            h3 { margin: 0 0 8px; font-size: 16px; }
+            p { margin: 5px 0; font-size: 12px; }
+            svg { max-width: 100%; height: auto; }
+            @media print {
+              body { padding: 0; }
+              .label { border: none; margin: 0 auto; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="label">
+            <h3>${escapeHTML(product.name)}</h3>
+            <p>SKU: ${escapeHTML(product.sku)}</p>
+            ${barcodeSVG}
+            <p>${escapeHTML(product.barcode)}</p>
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          <\/script>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    setError("");
   };
 
   const lowStockCount = products.filter(
@@ -156,14 +241,13 @@ function Products() {
   ).length;
 
   const totalUnits = products.reduce(
-    (total, product) => total + product.quantity,
+    (total, product) => total + Number(product.quantity || 0),
     0
   );
 
   return (
     <div className="products-page">
 
-      {/* HEADER */}
       <div className="products-heading">
         <div>
           <span className="eyebrow">INVENTORY / PRODUCTS</span>
@@ -171,20 +255,20 @@ function Products() {
           <p>Manage your products, pricing and inventory levels.</p>
         </div>
 
-        <motion.button
-          className="add-product-btn"
-          onClick={openAddModal}
-          whileHover={{ scale: 1.04 }}
-          whileTap={{ scale: 0.96 }}
-        >
-          <Plus size={19} />
-          Add Product
-        </motion.button>
+        {canManageProducts && (
+          <motion.button
+            className="add-product-btn"
+            onClick={openAddModal}
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.96 }}
+          >
+            <Plus size={19} />
+            Add Product
+          </motion.button>
+        )}
       </div>
 
-      {/* SUMMARY */}
       <div className="product-summary">
-
         <div className="product-summary-card">
           <Package />
           <div>
@@ -208,16 +292,14 @@ function Products() {
             <h2>{lowStockCount}</h2>
           </div>
         </div>
-
       </div>
 
-      {/* SEARCH */}
       <div className="products-toolbar">
         <div className="products-search">
           <Search size={19} />
           <input
             type="text"
-            placeholder="Search products by name..."
+            placeholder="Search products by name, SKU or barcode..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -232,7 +314,6 @@ function Products() {
         </button>
       </div>
 
-      {/* ERROR */}
       {error && (
         <div className="products-error">
           <AlertTriangle size={17} />
@@ -240,22 +321,17 @@ function Products() {
         </div>
       )}
 
-      {/* PRODUCT TABLE */}
       <div className="products-table-card">
-
         <div className="products-table-heading">
           <div>
             <h3>All Products</h3>
             <p>Your complete inventory list</p>
           </div>
-
           <span>{products.length} products</span>
         </div>
 
         {loading ? (
-          <div className="products-empty">
-            Loading products...
-          </div>
+          <div className="products-empty">Loading products...</div>
         ) : products.length === 0 ? (
           <div className="products-empty">
             <Package size={38} />
@@ -269,11 +345,12 @@ function Products() {
                 <tr>
                   <th>PRODUCT</th>
                   <th>SKU</th>
+                  <th>BARCODE</th>
                   <th>CATEGORY</th>
                   <th>PRICE</th>
                   <th>QUANTITY</th>
                   <th>STATUS</th>
-                  <th>ACTIONS</th>
+                  {canManageProducts && <th>ACTIONS</th>}
                 </tr>
               </thead>
 
@@ -294,7 +371,6 @@ function Products() {
                           <div className="product-image-icon">
                             <Package size={19} />
                           </div>
-
                           <div>
                             <strong>{product.name}</strong>
                             <small>{product.description || "No description"}</small>
@@ -303,6 +379,42 @@ function Products() {
                       </td>
 
                       <td>{product.sku}</td>
+
+                      <td>
+                        {product.barcode ? (
+                          <div
+                            className="product-barcode-cell"
+                            ref={(element) => {
+                              barcodeRefs.current[product._id] = element;
+                            }}
+                          >
+                            <Barcode
+                              value={product.barcode}
+                              format="CODE128"
+                              width={0.8}
+                              height={30}
+                              fontSize={9}
+                              margin={2}
+                              displayValue={false}
+                            />
+                            <small>{product.barcode}</small>
+                            <button
+                              type="button"
+                              className="print-barcode-btn"
+                              onClick={() => printBarcode(product)}
+                              title="Print barcode label"
+                            >
+                              <Printer size={14} />
+                              Print
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="product-status low">
+                            Barcode unavailable
+                          </span>
+                        )}
+                      </td>
+
                       <td>{product.category}</td>
 
                       <td className="product-price">
@@ -317,24 +429,28 @@ function Products() {
                         </span>
                       </td>
 
-                      <td>
-                        <div className="product-actions">
-                          <button
-                            onClick={() => openEditModal(product)}
-                            title="Edit product"
-                          >
-                            <Pencil size={16} />
-                          </button>
+                      {canManageProducts && (
+                        <td>
+                          <div className="product-actions">
+                            <button
+                              onClick={() => openEditModal(product)}
+                              title="Edit product"
+                            >
+                              <Pencil size={16} />
+                            </button>
 
-                          <button
-                            className="delete-action"
-                            onClick={() => handleDelete(product._id)}
-                            title="Delete product"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
+                            {canDeleteProducts && (
+                              <button
+                                className="delete-action"
+                                onClick={() => handleDelete(product._id)}
+                                title="Delete product"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </motion.tr>
                   );
                 })}
@@ -342,10 +458,8 @@ function Products() {
             </table>
           </div>
         )}
-
       </div>
 
-      {/* ADD / EDIT MODAL */}
       <AnimatePresence>
         {modalOpen && (
           <motion.div
@@ -362,7 +476,6 @@ function Products() {
               exit={{ opacity: 0, scale: 0.92, y: 20 }}
               onClick={(e) => e.stopPropagation()}
             >
-
               <div className="product-modal-heading">
                 <div>
                   <span className="eyebrow">INVENTORY MANAGEMENT</span>
@@ -375,9 +488,7 @@ function Products() {
               </div>
 
               <form onSubmit={handleSubmit}>
-
                 <div className="product-form-grid">
-
                   <div className="product-form-field">
                     <label>Product Name *</label>
                     <input
@@ -461,7 +572,6 @@ function Products() {
                       rows="3"
                     />
                   </div>
-
                 </div>
 
                 <div className="product-modal-actions">
@@ -485,14 +595,11 @@ function Products() {
                         : "Create Product"}
                   </button>
                 </div>
-
               </form>
-
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-
     </div>
   );
 }

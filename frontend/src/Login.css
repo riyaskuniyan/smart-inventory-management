@@ -273,3 +273,86 @@
     padding: 30px 24px;
   }
 }
+
+/* LOGIN - GLOBAL DARK/LIGHT THEME SUPPORT */
+
+.login-page {
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+.login-form-side {
+  background: var(--app-bg);
+}
+
+.login-card {
+  background: var(--app-card);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+
+.login-card h2 {
+  color: var(--app-text);
+}
+
+.login-subtitle,
+.login-security {
+  color: var(--app-muted);
+}
+
+.login-card form label {
+  color: var(--app-text);
+}
+
+.login-input {
+  background: var(--app-input);
+  border-color: var(--app-border);
+  color: var(--app-muted);
+}
+
+.login-input input {
+  color: var(--app-text);
+}
+
+.login-input input::placeholder {
+  color: var(--app-muted);
+}
+
+.password-toggle {
+  color: var(--app-muted);
+}
+
+.login-security {
+  border-top-color: var(--app-border);
+}
+
+:root[data-theme="light"] .login-decoration {
+  background:
+    radial-gradient(circle at 50% 45%, #b9f1e9 0%, transparent 45%),
+    linear-gradient(145deg, #e0f2f1, #f1f5f9);
+  border-right-color: var(--app-border);
+}
+
+:root[data-theme="light"] .login-hero h1,
+:root[data-theme="light"] .login-brand h2 {
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .login-hero p {
+  color: #475569;
+}
+
+:root[data-theme="light"] .login-footer {
+  color: #64748b;
+}
+
+:root[data-theme="light"] .hero-cube {
+  background: linear-gradient(145deg, #ccfbf1, #e0f2fe);
+  border-color: #99f6e4;
+}
+
+:root[data-theme="light"] .login-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}

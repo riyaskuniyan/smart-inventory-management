@@ -1,3 +1,4 @@
+
 const express = require("express");
 const router = express.Router();
 
@@ -11,34 +12,33 @@ const {
     getLowStockProducts
 } = require("../controllers/stockController");
 
-// All stock routes require login
 router.use(authMiddleware);
 
-// Stock IN
+// Stock IN — all roles
 router.post(
     "/:id/in",
     authorizeRoles("admin", "manager", "staff"),
     stockIn
 );
 
-// Stock OUT
+// Stock OUT — all roles
 router.post(
     "/:id/out",
     authorizeRoles("admin", "manager", "staff"),
     stockOut
 );
 
-// Stock movement history (Admin and Manager)
+// Stock history — all roles
 router.get(
     "/history",
-    authorizeRoles("admin", "manager"),
+    authorizeRoles("admin", "manager", "staff"),
     getStockHistory
 );
 
-// Low-stock products (Admin and Manager)
+// Low-stock products — all roles
 router.get(
     "/low-stock",
-    authorizeRoles("admin", "manager"),
+    authorizeRoles("admin", "manager", "staff"),
     getLowStockProducts
 );
 

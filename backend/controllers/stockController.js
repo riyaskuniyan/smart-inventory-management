@@ -1,6 +1,7 @@
 
 const Product = require("../models/Product");
 const StockMovement = require("../models/StockMovement");
+const logActivity = require("../utils/auditLogger");
 
 // 1. Stock IN
 const stockIn = async (req, res) => {
@@ -38,7 +39,22 @@ const stockIn = async (req, res) => {
             performedBy: req.user.id
         });
 
-        res.status(200).json({
+        await logActivity({
+            req,
+            action: "STOCK_IN",
+            module: "Stock",
+            description: `Added ${quantity} units to ${product.name}`,
+            targetId: product._id,
+            targetName: product.name,
+            details: {
+                quantity,
+                previousStock,
+                newStock: product.quantity,
+                note: note || ""
+            }
+        });
+
+        return res.status(200).json({
             success: true,
             message: "Stock added successfully",
             product,
@@ -46,7 +62,7 @@ const stockIn = async (req, res) => {
         });
 
     } catch (error) {
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: error.message
         });
@@ -96,7 +112,22 @@ const stockOut = async (req, res) => {
             performedBy: req.user.id
         });
 
-        res.status(200).json({
+        await logActivity({
+            req,
+            action: "STOCK_OUT",
+            module: "Stock",
+            description: `Removed ${quantity} units from ${product.name}`,
+            targetId: product._id,
+            targetName: product.name,
+            details: {
+                quantity,
+                previousStock,
+                newStock: product.quantity,
+                note: note || ""
+            }
+        });
+
+        return res.status(200).json({
             success: true,
             message: "Stock removed successfully",
             product,
@@ -104,7 +135,7 @@ const stockOut = async (req, res) => {
         });
 
     } catch (error) {
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: error.message
         });
@@ -119,14 +150,14 @@ const getStockHistory = async (req, res) => {
             .populate("performedBy", "name email")
             .sort({ createdAt: -1 });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             count: movements.length,
             movements
         });
 
     } catch (error) {
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: error.message
         });
@@ -142,14 +173,14 @@ const getLowStockProducts = async (req, res) => {
             }
         });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             count: products.length,
             products
         });
 
     } catch (error) {
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: error.message
         });

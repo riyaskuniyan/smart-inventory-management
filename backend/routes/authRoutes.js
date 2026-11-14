@@ -4,13 +4,19 @@ const router = express.Router();
 
 const {
     registerUser,
-    loginUser
+    loginUser,
+    updateProfile,
+    changePassword
 } = require("../controllers/authController");
 
-// Register
-router.post("/register", registerUser);
+const authMiddleware = require("../middleware/authMiddleware");
 
-// Login
+// Public routes
+router.post("/register", registerUser);
 router.post("/login", loginUser);
+
+// Protected routes
+router.put("/profile", authMiddleware, updateProfile);
+router.put("/password", authMiddleware, changePassword);
 
 module.exports = router;

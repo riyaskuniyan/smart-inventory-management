@@ -365,3 +365,94 @@
     grid-template-columns: 1fr;
   }
 }
+/* CUSTOMERS - GLOBAL DARK/LIGHT THEME SUPPORT */
+
+.customers-page {
+  color: var(--app-text);
+}
+
+.customers-header h1,
+.customers-table-header h3,
+.customer-stat-card h2,
+.customer-name-cell strong,
+.customer-modal-header h2 {
+  color: var(--app-text);
+}
+
+.customers-header p,
+.customers-table-header p,
+.customer-stat-card span,
+.customer-modal-header p,
+.customer-modal form label {
+  color: var(--app-muted);
+}
+
+.customer-stat-card,
+.customers-table-card,
+.customer-modal {
+  background: var(--app-card);
+  border-color: var(--app-border);
+}
+
+.customer-table th {
+  background: var(--app-input);
+  color: var(--app-muted);
+}
+
+.customer-table td {
+  color: var(--app-text);
+  border-bottom-color: var(--app-border);
+}
+
+.customer-table tbody tr:hover {
+  background: var(--app-input);
+}
+
+.customer-search {
+  background: var(--app-input);
+  border-color: var(--app-border);
+  color: var(--app-muted);
+}
+
+.customer-search input {
+  color: var(--app-text);
+}
+
+.customer-search input::placeholder {
+  color: var(--app-muted);
+}
+
+.customer-modal form input,
+.customer-modal form textarea {
+  background: var(--app-input);
+  color: var(--app-text);
+  border-color: var(--app-border);
+}
+
+.customer-modal form input::placeholder,
+.customer-modal form textarea::placeholder {
+  color: var(--app-muted);
+}
+
+.customer-modal-header button {
+  color: var(--app-muted);
+}
+
+.customer-cancel {
+  background: var(--app-input);
+  color: var(--app-text);
+  border-color: var(--app-border);
+}
+
+.customer-modal-overlay {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+:root[data-theme="light"] .customer-modal-overlay {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+:root[data-theme="light"] .customer-table tbody tr:hover {
+  background: #f1f5f9;
+}
+

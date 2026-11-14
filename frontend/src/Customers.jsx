@@ -22,6 +22,22 @@ const Customers = () => {
     address: ""
   });
 
+  // Read the logged-in user's role
+  let userRole = "staff";
+
+  try {
+    userRole = String(
+      JSON.parse(sessionStorage.getItem("user") || "{}").role || "staff"
+    ).toLowerCase();
+  } catch {
+    userRole = "staff";
+  }
+
+  const canManageCustomers =
+    userRole === "admin" || userRole === "manager";
+
+  const canDeleteCustomers = userRole === "admin";
+
   const token = sessionStorage.getItem("token");
 
   const api = axios.create({
@@ -47,12 +63,21 @@ const Customers = () => {
   }, []);
 
   const openAddModal = () => {
+    if (!canManageCustomers) return;
+
     setEditingId(null);
-    setForm({ name: "", email: "", phone: "", address: "" });
+    setForm({
+      name: "",
+      email: "",
+      phone: "",
+      address: ""
+    });
     setShowModal(true);
   };
 
   const openEditModal = (customer) => {
+    if (!canManageCustomers) return;
+
     setEditingId(customer._id);
     setForm({
       name: customer.name || "",
@@ -64,11 +89,16 @@ const Customers = () => {
   };
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!canManageCustomers) return;
 
     try {
       if (editingId) {
@@ -87,6 +117,8 @@ const Customers = () => {
   };
 
   const deleteCustomer = async (id) => {
+    if (!canDeleteCustomers) return;
+
     if (!window.confirm("Are you sure you want to delete this customer?")) {
       return;
     }
@@ -118,15 +150,20 @@ const Customers = () => {
           <button className="customer-refresh" onClick={fetchCustomers}>
             <RefreshCw size={17} /> Refresh
           </button>
-          <button className="customer-add" onClick={openAddModal}>
-            <UserPlus size={18} /> Add Customer
-          </button>
+
+          {canManageCustomers && (
+            <button className="customer-add" onClick={openAddModal}>
+              <UserPlus size={18} /> Add Customer
+            </button>
+          )}
         </div>
       </div>
 
       <div className="customer-stats">
         <div className="customer-stat-card">
-          <div className="customer-stat-icon"><Users /></div>
+          <div className="customer-stat-icon">
+            <Users />
+          </div>
           <div>
             <span>Total Customers</span>
             <h2>{customers.length}</h2>
@@ -163,7 +200,7 @@ const Customers = () => {
                   <th>Email</th>
                   <th>Phone</th>
                   <th>Address</th>
-                  <th>Actions</th>
+                  {canManageCustomers && <th>Actions</th>}
                 </tr>
               </thead>
 
@@ -178,33 +215,43 @@ const Customers = () => {
                         <strong>{customer.name}</strong>
                       </div>
                     </td>
+
                     <td>{customer.email || "—"}</td>
                     <td>{customer.phone || "—"}</td>
                     <td>{customer.address || "—"}</td>
-                    <td>
-                      <div className="customer-row-actions">
-                        <button
-                          className="customer-edit"
-                          onClick={() => openEditModal(customer)}
-                          title="Edit"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                        <button
-                          className="customer-delete"
-                          onClick={() => deleteCustomer(customer._id)}
-                          title="Delete"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
+
+                    {canManageCustomers && (
+                      <td>
+                        <div className="customer-row-actions">
+                          <button
+                            className="customer-edit"
+                            onClick={() => openEditModal(customer)}
+                            title="Edit"
+                          >
+                            <Pencil size={16} />
+                          </button>
+
+                          {canDeleteCustomers && (
+                            <button
+                              className="customer-delete"
+                              onClick={() => deleteCustomer(customer._id)}
+                              title="Delete"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
 
                 {filteredCustomers.length === 0 && (
                   <tr>
-                    <td colSpan="5" className="customer-message">
+                    <td
+                      colSpan={canManageCustomers ? 5 : 4}
+                      className="customer-message"
+                    >
                       No customers found.
                     </td>
                   </tr>
@@ -215,7 +262,7 @@ const Customers = () => {
         )}
       </div>
 
-      {showModal && (
+      {showModal && canManageCustomers && (
         <div className="customer-modal-overlay">
           <motion.div
             className="customer-modal"
@@ -227,6 +274,7 @@ const Customers = () => {
                 <h2>{editingId ? "Edit Customer" : "Add Customer"}</h2>
                 <p>Enter customer information below</p>
               </div>
+
               <button onClick={() => setShowModal(false)}>
                 <X size={20} />
               </button>
@@ -276,6 +324,7 @@ const Customers = () => {
                 >
                   Cancel
                 </button>
+
                 <button type="submit" className="customer-save">
                   {editingId ? "Update Customer" : "Save Customer"}
                 </button>

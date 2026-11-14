@@ -12,8 +12,9 @@ const {
 router.get(
     "/",
     authMiddleware,
-    authorizeRoles("admin", "manager"),
+    authorizeRoles("admin", "manager", "staff"),
     getDashboardStats
 );
 
 module.exports = router;
+    

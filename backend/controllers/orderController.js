@@ -1,9 +1,11 @@
+
 const mongoose = require("mongoose");
 
 const Order = require("../models/Order");
 const Product = require("../models/Product");
 const Customer = require("../models/Customer");
 const StockMovement = require("../models/StockMovement");
+const logActivity = require("../utils/auditLogger");
 
 // 1. Create Order
 const createOrder = async (req, res) => {
@@ -19,6 +21,13 @@ const createOrder = async (req, res) => {
             });
         }
 
+        if (!mongoose.isValidObjectId(customer)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid customer ID"
+            });
+        }
+
         if (items.some(item =>
             !mongoose.isValidObjectId(item.product) ||
             !Number.isInteger(item.quantity) ||
@@ -30,7 +39,7 @@ const createOrder = async (req, res) => {
             });
         }
 
-        // Prevent duplicate products in one order
+        // Prevent duplicate products
         const productIds = items.map(item => item.product);
 
         if (new Set(productIds.map(String)).size !== productIds.length) {
@@ -41,6 +50,8 @@ const createOrder = async (req, res) => {
         }
 
         let createdOrder;
+        let customerName = "";
+        let productDetails = [];
 
         await session.withTransaction(async () => {
 
@@ -50,6 +61,8 @@ const createOrder = async (req, res) => {
             if (!existingCustomer) {
                 throw new Error("Customer not found");
             }
+
+            customerName = existingCustomer.name;
 
             const orderItems = [];
             let totalAmount = 0;
@@ -71,7 +84,6 @@ const createOrder = async (req, res) => {
                     );
                 }
 
-                // Reduce stock only if sufficient stock remains
                 const updatedProduct = await Product.findOneAndUpdate(
                     {
                         _id: product._id,
@@ -102,7 +114,13 @@ const createOrder = async (req, res) => {
                     subtotal
                 });
 
-                // Record stock movement
+                productDetails.push({
+                    product: product.name,
+                    quantity: item.quantity,
+                    previousStock,
+                    newStock: updatedProduct.quantity
+                });
+
                 await StockMovement.create([{
                     product: product._id,
                     type: "OUT",
@@ -114,7 +132,6 @@ const createOrder = async (req, res) => {
                 }], { session });
             }
 
-            // Create order
             const orders = await Order.create([{
                 orderNumber: `ORD-${Date.now()}`,
                 customer: existingCustomer._id,
@@ -126,14 +143,29 @@ const createOrder = async (req, res) => {
             createdOrder = orders[0];
         });
 
-        res.status(201).json({
+        // Log only after transaction succeeds
+        await logActivity({
+            req,
+            action: "CREATE",
+            module: "Orders",
+            description: `Created order ${createdOrder.orderNumber} for ${customerName}`,
+            targetId: createdOrder._id,
+            targetName: createdOrder.orderNumber,
+            details: {
+                customer: customerName,
+                totalAmount: createdOrder.totalAmount,
+                products: productDetails
+            }
+        });
+
+        return res.status(201).json({
             success: true,
             message: "Order created successfully",
             order: createdOrder
         });
 
     } catch (error) {
-        res.status(400).json({
+        return res.status(400).json({
             success: false,
             message: error.message
         });
@@ -152,14 +184,14 @@ const getOrders = async (req, res) => {
             .populate("createdBy", "name email")
             .sort({ createdAt: -1 });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             count: orders.length,
             orders
         });
 
     } catch (error) {
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: error.message
         });
@@ -181,13 +213,13 @@ const getOrderById = async (req, res) => {
             });
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             order
         });
 
     } catch (error) {
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: error.message
         });

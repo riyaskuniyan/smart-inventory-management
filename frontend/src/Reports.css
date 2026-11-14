@@ -204,3 +204,113 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* REPORTS - GLOBAL DARK/LIGHT THEME SUPPORT */
+
+.reports-page {
+  color: var(--app-text);
+}
+
+.reports-header h1,
+.report-stat-card h2,
+.report-chart-heading h3,
+.report-bottom-card h3 {
+  color: var(--app-text);
+}
+
+.reports-header p,
+.report-stat-card span,
+.report-chart-heading p,
+.report-empty,
+.reports-loading {
+  color: var(--app-muted);
+}
+
+.report-stat-card,
+.report-chart-card,
+.report-bottom-card {
+  background: var(--app-card);
+  border-color: var(--app-border);
+}
+
+.report-low-stock-table th {
+  background: var(--app-input);
+  color: var(--app-muted);
+}
+
+.report-low-stock-table td {
+  color: var(--app-text);
+  border-bottom-color: var(--app-border);
+}
+
+.report-warning {
+  color: #d97706 !important;
+}
+
+:root[data-theme="light"] .report-stat-icon.sales {
+  background: #d1fae5;
+}
+
+:root[data-theme="light"] .report-stat-icon.orders {
+  background: #dbeafe;
+}
+
+:root[data-theme="light"] .report-stat-icon.products {
+  background: #ede9fe;
+}
+
+:root[data-theme="light"] .report-stat-icon.alerts {
+  background: #fef3c7;
+}
+
+:root[data-theme="light"] .report-low-stock-table tbody tr:hover {
+  background: #f1f5f9;
+}
+
+.reports-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.reports-export {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 15px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--text);
+  background: var(--card);
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.reports-export:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+
+.reports-export.csv {
+  color: #14b88a;
+}
+
+.reports-export.pdf {
+  color: #e87979;
+}
+
+@media (max-width: 700px) {
+  .reports-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .reports-export,
+  .reports-refresh {
+    flex: 1;
+  }
+}
