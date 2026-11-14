@@ -12,6 +12,7 @@ const productRoutes = require("./routes/productRoutes");
 const stockRoutes = require("./routes/stockRoutes");
 const customerRoutes = require("./routes/customerRoutes");
 const orderRoutes = require("./routes/orderRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/stock", stockRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 // Health check API
 app.get("/api/health", (req, res) => {
