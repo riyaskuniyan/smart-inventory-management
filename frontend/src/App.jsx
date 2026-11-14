@@ -1,8 +1,14 @@
+
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
 import Login from "./Login";
 import Products from "./Products";
+import StockManagement from "./StockManagement";
+import Customers from "./Customers";
+import Orders from "./Orders";
+import Reports from "./Reports";
+
 
 import {
   LayoutDashboard,
@@ -36,10 +42,8 @@ import {
 
 import "./App.css";
 
-// API BASE URL (set VITE_API_URL in .env, falls back to localhost)
 const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-// SALES CHART SAMPLE DATA
 const salesData = [
   { day: "Mon", sales: 400 },
   { day: "Tue", sales: 650 },
@@ -50,7 +54,6 @@ const salesData = [
   { day: "Sun", sales: 950 }
 ];
 
-// SIDEBAR MENU
 const navItems = [
   { name: "Dashboard", icon: LayoutDashboard },
   { name: "Products", icon: Package },
@@ -62,7 +65,6 @@ const navItems = [
 ];
 
 function App() {
-  // USER AUTHENTICATION
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       return JSON.parse(sessionStorage.getItem("user")) || null;
@@ -71,7 +73,6 @@ function App() {
     }
   });
 
-  // DASHBOARD STATES
   const [activePage, setActivePage] = useState("Dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -79,7 +80,6 @@ function App() {
   const [loadingStats, setLoadingStats] = useState(true);
   const [dashboardError, setDashboardError] = useState("");
 
-  // LOGOUT
   const handleLogout = () => {
     sessionStorage.removeItem("user");
     sessionStorage.removeItem("token");
@@ -88,7 +88,6 @@ function App() {
     setCurrentUser(null);
   };
 
-  // FETCH LIVE DASHBOARD DATA
   useEffect(() => {
     if (!currentUser) {
       setLoadingStats(false);
@@ -112,7 +111,6 @@ function App() {
           setDashboardStats(response.data.stats);
         }
       } catch (error) {
-        // Expired or invalid token: send the user back to login
         if (error.response?.status === 401) {
           sessionStorage.removeItem("user");
           sessionStorage.removeItem("token");
@@ -137,7 +135,6 @@ function App() {
     fetchDashboardStats();
   }, [currentUser]);
 
-  // DYNAMIC STATISTICS
   const stats = [
     {
       title: "Total Products",
@@ -156,14 +153,13 @@ function App() {
     },
     {
       title: "Total Sales",
-      value: `₹${Number(dashboardStats?.totalSales ?? 0).toLocaleString(
-        "en-IN"
-      )}`,
+      value: `₹${Number(
+        dashboardStats?.totalSales ?? 0
+      ).toLocaleString("en-IN")}`,
       icon: Wallet
     }
   ];
 
-  // PRODUCTS ABOVE THE LOW-STOCK THRESHOLD
   const healthyProducts = dashboardStats
     ? Math.max(
         0,
@@ -171,15 +167,12 @@ function App() {
       )
     : null;
 
-  // ALL HOOKS MUST BE ABOVE THIS CONDITION
   if (!currentUser) {
     return <Login onLogin={setCurrentUser} />;
   }
 
-  // DASHBOARD PAGE CONTENT
   const dashboardContent = (
     <>
-      {/* WELCOME BANNER */}
       <motion.section
         className="welcome-banner"
         initial={{ opacity: 0, y: 20 }}
@@ -187,7 +180,9 @@ function App() {
         transition={{ duration: 0.7 }}
       >
         <div>
-          <span className="eyebrow">OVERVIEW / {activePage.toUpperCase()}</span>
+          <span className="eyebrow">
+            OVERVIEW / {activePage.toUpperCase()}
+          </span>
 
           <h1>
             Welcome back, {currentUser.name}
@@ -200,10 +195,10 @@ function App() {
         <div className="banner-art">▦</div>
       </motion.section>
 
-      {/* API ERROR */}
-      {dashboardError && <div className="login-error">{dashboardError}</div>}
+      {dashboardError && (
+        <div className="login-error">{dashboardError}</div>
+      )}
 
-      {/* STATISTICS CARDS */}
       <section className="stats-grid">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
@@ -241,9 +236,7 @@ function App() {
         })}
       </section>
 
-      {/* DASHBOARD PANELS */}
       <section className="dashboard-grid">
-        {/* SALES CHART */}
         <motion.div
           className="panel glass-card sales-panel"
           initial={{ opacity: 0, y: 25 }}
@@ -286,7 +279,10 @@ function App() {
                   </linearGradient>
                 </defs>
 
-                <CartesianGrid stroke="#ffffff12" vertical={false} />
+                <CartesianGrid
+                  stroke="#ffffff12"
+                  vertical={false}
+                />
 
                 <XAxis
                   dataKey="day"
@@ -295,7 +291,11 @@ function App() {
                   axisLine={false}
                 />
 
-                <YAxis stroke="#8195a5" tickLine={false} axisLine={false} />
+                <YAxis
+                  stroke="#8195a5"
+                  tickLine={false}
+                  axisLine={false}
+                />
 
                 <Tooltip
                   contentStyle={{
@@ -319,7 +319,6 @@ function App() {
           </div>
         </motion.div>
 
-        {/* INVENTORY SUMMARY */}
         <motion.div
           className="panel glass-card inventory-panel"
           initial={{ opacity: 0, y: 25 }}
@@ -353,7 +352,6 @@ function App() {
           </div>
         </motion.div>
 
-        {/* RECENT ORDERS */}
         <motion.div
           className="panel glass-card orders-panel"
           initial={{ opacity: 0, y: 25 }}
@@ -396,7 +394,6 @@ function App() {
           </div>
         </motion.div>
 
-        {/* STOCK ALERTS */}
         <motion.div
           className="panel glass-card alert-panel"
           initial={{ opacity: 0, y: 25 }}
@@ -423,7 +420,9 @@ function App() {
                 <small>Check your inventory</small>
               </div>
 
-              <b className="stock-number">{dashboardStats.lowStockProducts}</b>
+              <b className="stock-number">
+                {dashboardStats.lowStockProducts}
+              </b>
             </div>
           ) : (
             <div className="alert-content">
@@ -433,7 +432,9 @@ function App() {
 
               <div>
                 <strong>No low-stock alerts</strong>
-                <small>Your inventory is above its thresholds.</small>
+                <small>
+                  Your inventory is above its thresholds.
+                </small>
               </div>
             </div>
           )}
@@ -450,7 +451,6 @@ function App() {
     </>
   );
 
-  // PLACEHOLDER FOR PAGES NOT BUILT YET
   const comingSoonContent = (
     <div className="panel glass-card" style={{ padding: 32 }}>
       <h2>{activePage}</h2>
@@ -458,21 +458,31 @@ function App() {
     </div>
   );
 
-  // PICK WHICH PAGE TO SHOW
+  // PAGE SELECTION
   let pageContent;
+
   if (activePage === "Dashboard") {
     pageContent = dashboardContent;
   } else if (activePage === "Products") {
     pageContent = <Products />;
-  } else {
+  } else if (activePage === "Stock Management") {
+    pageContent = <StockManagement />;
+  }else if (activePage === "Customers") {
+  pageContent = <Customers />;
+  } else if (activePage === "Orders") {
+  pageContent = <Orders />;
+  }else if (activePage === "Reports") {
+  pageContent = <Reports />;
+  }else {
     pageContent = comingSoonContent;
   }
 
   return (
     <div className="app-layout">
-      {/* SIDEBAR */}
       <motion.aside
-        className={`sidebar ${sidebarOpen ? "" : "sidebar-closed"}`}
+        className={`sidebar ${
+          sidebarOpen ? "" : "sidebar-closed"
+        }`}
         initial={{ x: -40, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.6 }}
@@ -521,9 +531,7 @@ function App() {
         )}
       </motion.aside>
 
-      {/* MAIN CONTENT */}
       <main className="main-content">
-        {/* TOPBAR */}
         <header className="topbar">
           <button
             className="icon-button"
