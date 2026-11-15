@@ -3,10 +3,18 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import axios from "axios";
 import {
-  Boxes, Mail, Lock, Eye, EyeOff,
-  ArrowRight, ShieldCheck
+  Boxes,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  ShieldCheck
 } from "lucide-react";
 import "./Login.css";
+
+// Local development and Render deployment API configuration
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 function Login({ onLogin }) {
   const [email, setEmail] = useState("");
@@ -22,7 +30,7 @@ function Login({ onLogin }) {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/auth/login",
+        `${API}/api/auth/login`,
         { email, password }
       );
 
@@ -37,7 +45,8 @@ function Login({ onLogin }) {
       }
     } catch (err) {
       setError(
-        err.response?.data?.message || "Unable to connect to server."
+        err.response?.data?.message ||
+        "Unable to connect to server."
       );
     } finally {
       setLoading(false);
@@ -54,12 +63,17 @@ function Login({ onLogin }) {
         transition={{ duration: 0.8 }}
       >
         <div className="login-brand">
-          <div className="login-brand-icon"><Boxes /></div>
-          <h2>Stock<span>Flow</span></h2>
+          <div className="login-brand-icon">
+            <Boxes />
+          </div>
+          <h2>
+            Stock<span>Flow</span>
+          </h2>
         </div>
 
         <div className="login-hero">
           <div className="hero-glow" />
+
           <motion.div
             className="hero-cube"
             animate={{ y: [0, -18, 0], rotate: [0, 8, 0] }}
@@ -68,8 +82,15 @@ function Login({ onLogin }) {
             <Boxes size={110} strokeWidth={1} />
           </motion.div>
 
-          <span className="eyebrow">SMART INVENTORY PLATFORM</span>
-          <h1>Take control of<br />your <span>business.</span></h1>
+          <span className="eyebrow">
+            SMART INVENTORY PLATFORM
+          </span>
+
+          <h1>
+            Take control of<br />
+            your <span>business.</span>
+          </h1>
+
           <p>
             One powerful platform to manage products,
             track inventory and grow your business.
@@ -93,16 +114,22 @@ function Login({ onLogin }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7 }}
         >
-          <span className="eyebrow">WELCOME BACK</span>
+          <span className="eyebrow">
+            WELCOME BACK
+          </span>
+
           <h2>Sign in to StockFlow</h2>
+
           <p className="login-subtitle">
             Enter your credentials to access your dashboard.
           </p>
 
           <form onSubmit={handleLogin}>
             <label>Email address</label>
+
             <div className="login-input">
               <Mail size={18} />
+
               <input
                 type="email"
                 placeholder="admin@example.com"
@@ -113,8 +140,10 @@ function Login({ onLogin }) {
             </div>
 
             <label>Password</label>
+
             <div className="login-input">
               <Lock size={18} />
+
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
@@ -122,16 +151,23 @@ function Login({ onLogin }) {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
+
               <button
                 type="button"
                 className="password-toggle"
                 onClick={() => setShowPassword(!showPassword)}
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPassword
+                  ? <EyeOff size={18} />
+                  : <Eye size={18} />}
               </button>
             </div>
 
-            {error && <div className="login-error">{error}</div>}
+            {error && (
+              <div className="login-error">
+                {error}
+              </div>
+            )}
 
             <motion.button
               type="submit"
@@ -140,7 +176,10 @@ function Login({ onLogin }) {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              {loading ? "Signing in..." : "Sign in to dashboard"}
+              {loading
+                ? "Signing in..."
+                : "Sign in to dashboard"}
+
               <ArrowRight size={18} />
             </motion.button>
           </form>

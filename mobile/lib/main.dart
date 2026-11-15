@@ -19,8 +19,8 @@ const Color lime = Color(0xFF9BE15D);
 const Color limeBright = Color(0xFFB5F56B);
 const Color muted = Color(0xFF91A092);
 
-const String apiUrl = 'http://10.0.2.2:5000/api';
-
+const String apiUrl =
+    'https://smart-inventory-management-ufzf.onrender.com/api';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const SmartInventoryApp());
