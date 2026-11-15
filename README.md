@@ -9,6 +9,18 @@ A full-stack inventory and order management platform built to help businesses ma
 - **API Health Check:** https://smart-inventory-management-ufzf.onrender.com/api/health
 - **GitHub Repository:** https://github.com/riyaskuniyan/smart-inventory-management
 
+- admin login 
+mail- admin@example.com
+pass- 12345678
+
+-manager login
+mail- manager@example.com
+pass-Manager@12345
+
+-staff login
+mail- staff@example.com
+pass- Staff@12345
+
 ## 📌 Project Overview
 
 StockFlow is designed to simplify business inventory operations by providing a centralized system for managing products, monitoring stock movements, handling customer information, processing orders and generating reports.
